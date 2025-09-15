@@ -10,12 +10,12 @@ import (
 func SplitTextToThreeVars(text string) (string, string, string, error) {
 	parts := strings.Fields(text)
 	if len(parts) != 3 {
-		return "", "", "", fmt.Errorf("Получено больше или меньше 3 слов, а получено : %d", len(parts))
+		return "", "", "", fmt.Errorf("Получено больше или меньше 3 parts, а получено : %d", len(parts))
 	}
 	return parts[0], parts[1], parts[2], nil
 }
 
-func IsValidSingleWord(text string) (bool, string) {
+func IsValidUsername(text string) (bool, string) {
 	text = strings.TrimSpace(text)
 
 	if text == "" {
@@ -30,7 +30,7 @@ func IsValidSingleWord(text string) (bool, string) {
 		return false, "Username не должен превышать 50 символов"
 	}
 
-	// Проверяем что содержит только английские буквы и цифры
+	// Проверяем что содержит только английские буквы, цифры и _
 	matched, _ := regexp.MatchString(`^[a-zA-Z0-9_]+$`, text)
 	if !matched {
 		return false, "Допускаются только английские буквы, цифры и нижнее подчеркивание"

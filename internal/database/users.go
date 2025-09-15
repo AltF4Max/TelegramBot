@@ -7,14 +7,21 @@ import (
 )
 
 // Проверяет есть ли userID в БД
-func UserExists(userID int64) (bool, error) {
+func UserExists(userID int64) (bool, error) { //isTelegramUsernameExists
 	query := "SELECT COUNT(*) FROM users WHERE user_id = ?"
 	var count int
 	err := DB.QueryRow(query, userID).Scan(&count)
 	return count > 0, err
 }
 
-// Проверяет у кого сегодня др
+func isTelegramUsernameExists(username string) (bool, error) { // UserExists
+	query := `SELECT COUNT(*) FROM user_contacts WHERE telegram_username = ?`
+	var count int
+	err := DB.QueryRow(query, username).Scan(&count)
+	return count > 0, err
+}
+
+// Проверяет у кого Birthdays
 func GetTodayBirthdays() ([]config.UserContact, error) {
 	today := time.Now()
 	query := `
@@ -25,7 +32,7 @@ func GetTodayBirthdays() ([]config.UserContact, error) {
 
 	rows, err := DB.Query(query, today.Month(), today.Day())
 	if err != nil {
-		return nil, fmt.Errorf("ошибка выполнения запроса: %w", err)
+		return nil, fmt.Errorf("Ошибка выполнения запроса: %w", err)
 	}
 	defer rows.Close()
 
@@ -33,22 +40,21 @@ func GetTodayBirthdays() ([]config.UserContact, error) {
 	for rows.Next() {
 		var user config.UserContact
 		if err := rows.Scan(&user.ID, &user.FirstName, &user.LastName, &user.MiddleName, &user.BirthDate, &user.TelegramUsername); err != nil {
-			return nil, fmt.Errorf("ошибка сканирования: %w", err)
+			return nil, fmt.Errorf("Ошибка сканирования: %w", err)
 		}
 
 		// Вычисляем возраст сразу после сканирования
 		age := today.Year() - user.BirthDate.Year()
-		if today.YearDay() < user.BirthDate.YearDay() {
+		birthdayThisYear := time.Date(today.Year(), user.BirthDate.Month(), user.BirthDate.Day(), 0, 0, 0, 0, today.Location())
+		if today.Before(birthdayThisYear) {
 			age--
 		}
 		user.Age = age
-
 		users = append(users, user)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("ошибка итерации: %w", err)
+		return nil, fmt.Errorf("Ошибка итерации: %w", err)
 	}
-
 	return users, nil
 }
 
@@ -57,10 +63,10 @@ func AddUserContact(user *config.UserStateData) (bool, error) {
 	// Сначала проверяем существует ли username
 	exists, err := isTelegramUsernameExists(user.TelegramUsername)
 	if err != nil {
-		return false, fmt.Errorf("ошибка проверки username: %w", err)
+		return false, fmt.Errorf("Ошибка проверки username: %w", err)
 	}
 	if exists {
-		return true, fmt.Errorf("username %s уже существует", user.TelegramUsername)
+		return true, fmt.Errorf("Username %s уже существует", user.TelegramUsername)
 	}
 
 	query := `
@@ -71,18 +77,8 @@ func AddUserContact(user *config.UserStateData) (bool, error) {
 
 	_, err = DB.Exec(query, user.FirstName, user.LastName, user.MiddleName, user.BirthDate, user.TelegramUsername)
 	if err != nil {
-		return false, fmt.Errorf("ошибка при добавлении пользователя: %w", err)
+		return false, fmt.Errorf("Ошибка при добавлении пользователя: %w", err)
 	}
 
 	return false, nil
-}
-
-func isTelegramUsernameExists(username string) (bool, error) {
-	var count int
-	query := `SELECT COUNT(*) FROM user_contacts WHERE telegram_username = ?`
-	err := DB.QueryRow(query, username).Scan(&count)
-	if err != nil {
-		return false, fmt.Errorf("ошибка проверки: %w", err)
-	}
-	return count > 0, nil
 }

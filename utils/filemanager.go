@@ -23,7 +23,7 @@ func SendRedGif(bot *tgbotapi.BotAPI, message *tgbotapi.Message, assetPaths *con
 	// Проверяем, существует ли файл
 	if !fileExists(gifPath) {
 		log.Printf("GIF не найден: %s", gifPath)
-		msg := tgbotapi.NewMessage(message.Chat.ID, "У тебя нет доступа!") //❌ GIF не найден
+		msg := tgbotapi.NewMessage(message.Chat.ID, "❌ У тебя нет доступа!") //❌ GIF не найден
 		bot.Send(msg)
 		return
 	}
@@ -35,7 +35,7 @@ func SendRedGif(bot *tgbotapi.BotAPI, message *tgbotapi.Message, assetPaths *con
 	_, err := bot.Send(document)
 	if err != nil {
 		log.Printf("Ошибка отправки GIF: %v", err)
-		msg := tgbotapi.NewMessage(message.Chat.ID, "❌ Ошибка отправки GIF")
+		msg := tgbotapi.NewMessage(message.Chat.ID, "❌ У тебя нет доступа!") //❌ Ошибка отправки GIF
 		bot.Send(msg)
 	} else {
 		log.Printf("GIF отправлен: %s", gifPath)

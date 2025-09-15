@@ -2,7 +2,6 @@ package config
 
 import "time"
 
-// Объявляем структуру UserContact
 type UserContact struct {
 	ID               int       `json:"id"`
 	FirstName        string    `json:"first_name"`
@@ -14,7 +13,7 @@ type UserContact struct {
 }
 
 // Глобальная map для хранения состояний пользователей
-var UserS_D = make(map[int64]*UserStateData)
+var MapUserStateData = make(map[int64]*UserStateData)
 
 type UserStateData struct {
 	State            string

@@ -27,12 +27,8 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
-
-	// Устанавливаем режим отладки (опционально)
-	bot.Debug = true
-
+	///
 	chatID := int64(837127109)
-
 	users, err := database.GetTodayBirthdays()
 	if err != nil {
 		log.Fatal("Ошибка:", err)
@@ -46,13 +42,16 @@ func main() {
 				user.LastName,
 				user.Age)
 			if user.TelegramUsername != "" {
-				messageText += fmt.Sprintf("   👤 @%s\n", user.TelegramUsername) //update.Message.From.UserName
+				messageText += fmt.Sprintf("   👤 @%s\n", user.TelegramUsername)
 			}
 			messageText += "\n" // отступ между пользователями
 		}
 		msg := tgbotapi.NewMessage(chatID, messageText)
 		bot.Send(msg)
 	}
+	///
+	// Устанавливаем режим отладки (опционально)
+	bot.Debug = true
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
@@ -70,27 +69,23 @@ func main() {
 				return
 			}
 			if exists {
-
 				if update.Message.IsCommand() {
 					switch update.Message.Command() {
-					case "addusercontact":
+					case "adduser":
 						chatID := update.Message.Chat.ID
-
 						// Если не существует - создаем, если существует - используем
-						config.UserS_D[chatID] = &config.UserStateData{State: config.StateWaitingFIO}
-
+						config.MapUserStateData[chatID] = &config.UserStateData{State: config.StateWaitingFIO}
 						msg := tgbotapi.NewMessage(chatID, "Введите ФИО в формате:\nИван Иванов Иванович")
 						bot.Send(msg)
 						continue
 					}
 				}
-
 				// Обработка состояний (если пользователь в процессе диалога)
-				if _, exists := config.UserS_D[update.Message.Chat.ID]; exists {
-					handleUserState(bot, update, config.UserS_D[chatID].State)
+				if _, exists := config.MapUserStateData[update.Message.Chat.ID]; exists {
+					handleUserState(bot, update, config.MapUserStateData[chatID].State)
 					continue
 				}
-
+				// Повторяет сообщение пользователя
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Вы сказали: "+update.Message.Text)
 				if _, err := bot.Send(msg); err != nil {
 					log.Println("Ошибка отправки сообщения:", err)
@@ -115,10 +110,10 @@ func handleUserState(bot *tgbotapi.BotAPI, update tgbotapi.Update, state string)
 			bot.Send(msg)
 			return
 		}
-		config.UserS_D[chatID].FirstName = firstName
-		config.UserS_D[chatID].LastName = lastName
-		config.UserS_D[chatID].MiddleName = middleName
-		config.UserS_D[chatID].State = config.StateWaitingDate
+		config.MapUserStateData[chatID].FirstName = firstName
+		config.MapUserStateData[chatID].LastName = lastName
+		config.MapUserStateData[chatID].MiddleName = middleName
+		config.MapUserStateData[chatID].State = config.StateWaitingDate
 
 		msg := tgbotapi.NewMessage(chatID, "Теперь введите дату рождения в формате ГГГГ-ММ-ДД:\nНапример: 1990-05-15")
 		bot.Send(msg)
@@ -130,28 +125,29 @@ func handleUserState(bot *tgbotapi.BotAPI, update tgbotapi.Update, state string)
 			bot.Send(msg)
 			return
 		}
+		// Обрезает время, оставляя только дату
 		today := time.Now().Truncate(24 * time.Hour)
 		if birthDate.After(today) {
 			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("❌ Неправильная дата. %s еще не наступил", text))
 			bot.Send(msg)
 			return
 		}
-		config.UserS_D[chatID].BirthDate = birthDate
-		config.UserS_D[chatID].State = config.StateWaitingUsername
+		config.MapUserStateData[chatID].BirthDate = birthDate
+		config.MapUserStateData[chatID].State = config.StateWaitingUsername
 
 		msg := tgbotapi.NewMessage(chatID, "Теперь введите Telegram username (без @):\nНапример: ivanov_90")
 		bot.Send(msg)
 		// Сохраняем TelegramUsername и добавляем в БД
 	case config.StateWaitingUsername:
-		isValid, errorMsg := utils.IsValidSingleWord(text)
+		isValid, errorMsg := utils.IsValidUsername(text)
 		if !isValid {
 			msg := tgbotapi.NewMessage(chatID, "❌ "+errorMsg)
 			bot.Send(msg)
 			return
 		}
-		config.UserS_D[chatID].TelegramUsername = text
+		config.MapUserStateData[chatID].TelegramUsername = text
 
-		exists, err := database.AddUserContact(config.UserS_D[chatID])
+		exists, err := database.AddUserContact(config.MapUserStateData[chatID])
 		if err != nil {
 			msg := tgbotapi.NewMessage(chatID, "❌ Произошла ошибка при добавлении")
 			bot.Send(msg)
@@ -165,6 +161,6 @@ func handleUserState(bot *tgbotapi.BotAPI, update tgbotapi.Update, state string)
 			msg := tgbotapi.NewMessage(chatID, "✅ Контакт успешно добавлен!")
 			bot.Send(msg)
 		}
-		delete(config.UserS_D, chatID)
+		delete(config.MapUserStateData, chatID)
 	}
 }

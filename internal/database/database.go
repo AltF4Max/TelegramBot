@@ -36,7 +36,7 @@ func Init() {
 		log.Panic("Ошибка ping MySQL:", err)
 	}
 
-	log.Println("Успешное подключение к MySQL")
+	log.Println("✅ Успешное подключение к MySQL")
 }
 
 func Close() {

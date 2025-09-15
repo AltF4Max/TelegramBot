@@ -109,9 +109,9 @@ func handleUserState(bot *tgbotapi.BotAPI, update tgbotapi.Update, state string)
 	switch state {
 	// Сохраняем ФИО и запрашиваем дату
 	case config.StateWaitingFIO:
-		firstName, lastName, middleName, err := utils.SplitTextToThreeVars(text) //Добавить если больше 3 слов
+		firstName, lastName, middleName, err := utils.SplitTextToThreeVars(text)
 		if err != nil {
-			msg := tgbotapi.NewMessage(chatID, "❌ Неправильный формат ФИО. Введите Фамилия Имя Отчество") //
+			msg := tgbotapi.NewMessage(chatID, "❌ Неправильный формат ФИО. Введите Фамилия Имя Отчество")
 			bot.Send(msg)
 			return
 		}
@@ -124,32 +124,46 @@ func handleUserState(bot *tgbotapi.BotAPI, update tgbotapi.Update, state string)
 		bot.Send(msg)
 		// Сохраняем дату и запрашиваем TelegramUsername
 	case config.StateWaitingDate:
-		birthDate, err := time.Parse("2006-01-02", text) //Добавить проверку на дату
+		birthDate, err := time.Parse("2006-01-02", text)
 		if err != nil {
 			msg := tgbotapi.NewMessage(chatID, "❌ Неправильный формат даты. Введите ГГГГ-ММ-ДД:")
 			bot.Send(msg)
 			return
 		}
-
+		today := time.Now().Truncate(24 * time.Hour)
+		if birthDate.After(today) {
+			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("❌ Неправильная дата. %s еще не наступил", text))
+			bot.Send(msg)
+			return
+		}
 		config.UserS_D[chatID].BirthDate = birthDate
 		config.UserS_D[chatID].State = config.StateWaitingUsername
 
-		msg := tgbotapi.NewMessage(chatID, "Теперь введите Telegram username (без @):\nНапример: ivanov90")
+		msg := tgbotapi.NewMessage(chatID, "Теперь введите Telegram username (без @):\nНапример: ivanov_90")
 		bot.Send(msg)
 		// Сохраняем TelegramUsername и добавляем в БД
 	case config.StateWaitingUsername:
-		config.UserS_D[chatID].TelegramUsername = text //Можно удалить если поменять?
+		isValid, errorMsg := utils.IsValidSingleWord(text)
+		if !isValid {
+			msg := tgbotapi.NewMessage(chatID, "❌ "+errorMsg)
+			bot.Send(msg)
+			return
+		}
+		config.UserS_D[chatID].TelegramUsername = text
 
-		exists, err := database.AddUserContact(config.UserS_D[chatID].FirstName, config.UserS_D[chatID].LastName, config.UserS_D[chatID].MiddleName, config.UserS_D[chatID].TelegramUsername, config.UserS_D[chatID].BirthDate) //Поменять + проверка на ру буквы
+		exists, err := database.AddUserContact(config.UserS_D[chatID])
 		if err != nil {
 			msg := tgbotapi.NewMessage(chatID, "❌ Произошла ошибка при добавлении")
 			bot.Send(msg)
 			return
 		}
 		if exists {
-			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("❌ Пользователь c Telegram username: %s уже существует в БД", config.UserS_D[chatID].TelegramUsername)) //
+			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("❌ Пользователь c Telegram username: %s уже существует в БД", text))
 			bot.Send(msg)
-			delete(config.UserS_D, chatID)
+			return //
+		} else {
+			msg := tgbotapi.NewMessage(chatID, "✅ Контакт успешно добавлен!")
+			bot.Send(msg)
 		}
 		delete(config.UserS_D, chatID)
 	}

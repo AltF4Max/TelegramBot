@@ -53,14 +53,14 @@ func GetTodayBirthdays() ([]config.UserContact, error) {
 }
 
 // AddUserContact добавляет нового пользователя в базу данных
-func AddUserContact(firstName, lastName, middleName, telegramUsername string, birthDate time.Time) (bool, error) {
+func AddUserContact(user *config.UserStateData) (bool, error) {
 	// Сначала проверяем существует ли username
-	exists, err := isTelegramUsernameExists(telegramUsername)
+	exists, err := isTelegramUsernameExists(user.TelegramUsername)
 	if err != nil {
 		return false, fmt.Errorf("ошибка проверки username: %w", err)
 	}
 	if exists {
-		return true, fmt.Errorf("username %s уже существует", telegramUsername)
+		return true, fmt.Errorf("username %s уже существует", user.TelegramUsername)
 	}
 
 	query := `
@@ -69,7 +69,7 @@ func AddUserContact(firstName, lastName, middleName, telegramUsername string, bi
         VALUES (?, ?, ?, ?, ?)
     `
 
-	_, err = DB.Exec(query, firstName, lastName, middleName, birthDate, telegramUsername)
+	_, err = DB.Exec(query, user.FirstName, user.LastName, user.MiddleName, user.BirthDate, user.TelegramUsername)
 	if err != nil {
 		return false, fmt.Errorf("ошибка при добавлении пользователя: %w", err)
 	}

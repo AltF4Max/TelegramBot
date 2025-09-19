@@ -78,7 +78,34 @@ func main() {
 						msg := tgbotapi.NewMessage(chatID, "Введите ФИО в формате:\nИван Иванов Иванович")
 						bot.Send(msg)
 						continue
+					case "deleteuser":
+						config.MapUserStateData[chatID] = &config.UserStateData{State: config.StateWaitingDeleteUsername}
+						msg := tgbotapi.NewMessage(chatID, "Введите Telegram username (без @) пользователя для удаления в формате:\nНапример: ivanov_90")
+						bot.Send(msg)
+						continue
+					case "showall":
+						users, err := database.GetAllUsers()
+						if err != nil {
+							msg := tgbotapi.NewMessage(chatID, "Ошибка: "+err.Error())
+							bot.Send(msg)
+							continue
+						}
+						if len(users) == 0 {
+							msg := tgbotapi.NewMessage(chatID, "📭 База данных пуста")
+							bot.Send(msg)
+							continue
+						}
+						message := "👥 Все пользователи:\n\n"
+						for i, user := range users {
+							message += fmt.Sprintf("   %d. %s %s %s\n", i+1, user.LastName, user.FirstName, user.MiddleName)
+							message += fmt.Sprintf("   👤 @%s\n", user.TelegramUsername)
+							message += fmt.Sprintf("   🎂 %s\n\n", user.BirthDate.Format("02.01.2006"))
+						}
+						msg := tgbotapi.NewMessage(chatID, message)
+						bot.Send(msg)
+						continue
 					}
+
 				}
 				// Обработка состояний (если пользователь в процессе диалога)
 				if _, exists := config.MapUserStateData[update.Message.Chat.ID]; exists {
@@ -159,6 +186,28 @@ func handleUserState(bot *tgbotapi.BotAPI, update tgbotapi.Update, state string)
 			return //
 		} else {
 			msg := tgbotapi.NewMessage(chatID, "✅ Контакт успешно добавлен!")
+			bot.Send(msg)
+		}
+		delete(config.MapUserStateData, chatID)
+	case config.StateWaitingDeleteUsername:
+		isValid, errorMsg := utils.IsValidUsername(text)
+		if !isValid {
+			msg := tgbotapi.NewMessage(chatID, "❌ "+errorMsg)
+			bot.Send(msg)
+			return
+		}
+		exists, err := database.DeleteUserContact(text)
+		if err != nil {
+			msg := tgbotapi.NewMessage(chatID, "❌ Произошла ошибка при удалении")
+			bot.Send(msg)
+			return
+		}
+		if exists {
+			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("❌ Пользователь c Telegram username: %s не существует в БД", text))
+			bot.Send(msg)
+			return //
+		} else {
+			msg := tgbotapi.NewMessage(chatID, "✅ Контакт успешно удален!")
 			bot.Send(msg)
 		}
 		delete(config.MapUserStateData, chatID)

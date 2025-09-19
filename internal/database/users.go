@@ -66,7 +66,7 @@ func AddUserContact(user *config.UserStateData) (bool, error) {
 		return false, fmt.Errorf("Ошибка проверки username: %w", err)
 	}
 	if exists {
-		return true, fmt.Errorf("Username %s уже существует", user.TelegramUsername)
+		return true, nil //fmt.Errorf("Username %s уже существует", user.TelegramUsername)
 	}
 
 	query := `
@@ -81,4 +81,50 @@ func AddUserContact(user *config.UserStateData) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func DeleteUserContact(telegramUsername string) (bool, error) {
+	query := `DELETE FROM user_contacts WHERE telegram_username = ?`
+
+	result, err := DB.Exec(query, telegramUsername)
+	if err != nil {
+		return false, fmt.Errorf("Ошибка при удалении пользователя: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("Ошибка при проверке результата удаления: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return true, nil //fmt.Errorf("Пользователь с username %s не найден", telegramUsername)
+	}
+	return false, nil
+}
+
+func GetAllUsers() ([]config.UserContact, error) {
+	query := `SELECT first_name, last_name, middle_name, birth_date, telegram_username 
+              FROM user_contacts ORDER BY last_name, first_name`
+
+	rows, err := DB.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("Ошибка выполнения запроса: %w", err)
+	}
+	defer rows.Close()
+
+	var users []config.UserContact
+	for rows.Next() {
+		var user config.UserContact
+		err := rows.Scan(&user.FirstName, &user.LastName, &user.MiddleName, &user.BirthDate, &user.TelegramUsername)
+		if err != nil {
+			return nil, fmt.Errorf("Ошибка чтения данных: %w", err)
+		}
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("Ошибка при итерации результатов: %w", err)
+	}
+
+	return users, nil
 }

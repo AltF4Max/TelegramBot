@@ -26,7 +26,8 @@ type UserStateData struct {
 
 // Состояния
 const (
-	StateWaitingFIO      = "waiting_fio"
-	StateWaitingDate     = "waiting_date"
-	StateWaitingUsername = "waiting_username"
+	StateWaitingFIO            = "waiting_fio"
+	StateWaitingDate           = "waiting_date"
+	StateWaitingUsername       = "waiting_username"
+	StateWaitingDeleteUsername = "waiting_delete_username"
 )
